@@ -37,7 +37,7 @@ def edges_eval_img(im, gt, out="", thrs=99, max_dist=0.0075, thin=True, need_v=F
     gt = [g.item()[1] for g in loadmat(gt)["groundTruth"][0]]  # 0: Segmentation, 1: Boundaries
 
     # evaluate edge result at each threshold
-    cnt_sum_r_p = np.zeros((k, 4), dtype=np.int)  # cnt_r, sum_r, cnt_p, sum_r
+    cnt_sum_r_p = np.zeros((k, 4), dtype=int)  # cnt_r, sum_r, cnt_p, sum_r
     v = np.zeros((*edge.shape, 3, k), dtype=np.float32)
 
     if workers == 1:
@@ -45,8 +45,8 @@ def edges_eval_img(im, gt, out="", thrs=99, max_dist=0.0075, thin=True, need_v=F
             e1 = edge >= max(eps, thrs[k_])
             if thin:
                 e1 = bwmorph_thin(e1)
-            match_e, match_g = np.zeros_like(edge, dtype=bool), np.zeros_like(edge, dtype=np.int)
-            all_g = np.zeros_like(edge, dtype=np.int)
+            match_e, match_g = np.zeros_like(edge, dtype=bool), np.zeros_like(edge, dtype=int)
+            all_g = np.zeros_like(edge, dtype=int)
             for g in gt:
                 match_e1, match_g1, _, _ = correspond_pixels(e1, g, max_dist)
                 match_e = np.logical_or(match_e, match_e1 > 0)
@@ -58,7 +58,7 @@ def edges_eval_img(im, gt, out="", thrs=99, max_dist=0.0075, thin=True, need_v=F
 
             if need_v:
                 cs = np.array([[1, 0, 0], [0, 0.7, 0], [0.7, 0.8, 1]]) - 1
-                fp = e1.astype(np.int) - match_e.astype(np.int)
+                fp = e1.astype(int) - match_e.astype(int)
                 tp = match_e
                 fn = (all_g - match_g) / len(gt)
                 for g in range(3):
@@ -73,8 +73,8 @@ def edges_eval_img(im, gt, out="", thrs=99, max_dist=0.0075, thin=True, need_v=F
                 _e1 = _edge >= max(_eps, _thrs[_k])
                 if _thin:
                     _e1 = bwmorph_thin(_e1)
-                _match_e, _match_g = np.zeros_like(_edge, dtype=bool), np.zeros_like(_edge, dtype=np.int)
-                _all_g = np.zeros_like(edge, dtype=np.int)
+                _match_e, _match_g = np.zeros_like(_edge, dtype=bool), np.zeros_like(_edge, dtype=int)
+                _all_g = np.zeros_like(edge, dtype=int)
                 for _g in _gt:
                     _match_e1, _match_g1, _, _ = correspond_pixels(_e1, _g, _max_dist)
                     _match_e = np.logical_or(_match_e, _match_e1 > 0)
