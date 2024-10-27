@@ -8,9 +8,7 @@ from collections import namedtuple
 from ctypes import *
 from scipy.spatial import cKDTree
 
-solver = cdll.LoadLibrary("cxx/lib/solve_csa.so")
 c_int_pointer = POINTER(c_int32)
-
 
 def match_edge_maps(bmap1, bmap2, max_dist, outlier_cost):
     """
@@ -266,7 +264,7 @@ def match_edge_maps(bmap1, bmap2, max_dist, outlier_cost):
     return m1, m2, cost
 
 
-def fast_match_edge_maps(bmap1, bmap2, max_dist, outlier_cost, need_cost=False):
+def fast_match_edge_maps(bmap1, bmap2, max_dist, outlier_cost, solver, need_cost=False):
     """
     Numpy Implementation, Faster!
     """
@@ -280,7 +278,7 @@ def fast_match_edge_maps(bmap1, bmap2, max_dist, outlier_cost, need_cost=False):
 
     # initialize
     height, width = bmap1.shape
-    m1, m2 = np.zeros_like(bmap1, dtype=int32), np.zeros_like(bmap2, dtype=int32)
+    m1, m2 = np.zeros_like(bmap1, dtype=np.int32), np.zeros_like(bmap2, dtype=np.int32)
     match1, match2 = -np.ones((*bmap1.shape, 2), dtype=int), -np.ones((*bmap2.shape, 2), dtype=int)
 
     # figure out which nodes are matchable
@@ -334,7 +332,7 @@ def fast_match_edge_maps(bmap1, bmap2, max_dist, outlier_cost, need_cost=False):
 
     # Construct the input graph for the assignment problem
     ow = int(np.ceil(outlier_cost * multiplier).item())  # Weight of outlier connections
-    igraph = np.zeros((m, 3), dtype=int32)
+    igraph = np.zeros((m, 3), dtype=np.int32)
     count = len(edges)
     if count:
         igraph[:count, ...] = edges
@@ -342,7 +340,7 @@ def fast_match_edge_maps(bmap1, bmap2, max_dist, outlier_cost, need_cost=False):
     # outliers edges for map1, exclude diagonal
     count_end = count + n1 * d1
     indices = np.tile(np.arange(n1)[:, None], (d1,)).flatten()
-    outliers = np.zeros((n1 * d1,), dtype=int32)
+    outliers = np.zeros((n1 * d1,), dtype=np.int32)
     [solver.kOfN(d1, n1 - 1, outliers[i * d1:(i + 1) * d1].ctypes.data_as(c_int_pointer)) for i in range(n1)]
     outliers[outliers >= indices] += 1
     igraph[count:count_end, 0] = indices
@@ -352,8 +350,8 @@ def fast_match_edge_maps(bmap1, bmap2, max_dist, outlier_cost, need_cost=False):
 
     # outliers edges for map2, exclude diagonal
     count_end = count + n2 * d2
-    indices = np.tile(np.arange(n2)[:, None], (d2,)).flatten().astype(int32)
-    outliers = np.zeros((n2 * d2,), dtype=int32)
+    indices = np.tile(np.arange(n2)[:, None], (d2,)).flatten().astype(np.int32)
+    outliers = np.zeros((n2 * d2,), dtype=np.int32)
     [solver.kOfN(d2, n2 - 1, outliers[i * d2:(i + 1) * d2].ctypes.data_as(c_int_pointer)) for i in range(n2)]
     outliers[outliers >= indices] += 1
     igraph[count:count_end, 0] = n1 + outliers
@@ -363,8 +361,8 @@ def fast_match_edge_maps(bmap1, bmap2, max_dist, outlier_cost, need_cost=False):
 
     # outlier-to-outlier edges
     count_end = count + n_max * d3
-    indices = np.tile(np.arange(n_max)[:, None], (d3,)).flatten().astype(int32)
-    outliers = np.zeros((n_max * d3,), dtype=int32)
+    indices = np.tile(np.arange(n_max)[:, None], (d3,)).flatten().astype(np.int32)
+    outliers = np.zeros((n_max * d3,), dtype=np.int32)
     [solver.kOfN(d3, n_min, outliers[i * d3:(i + 1) * d3].ctypes.data_as(c_int_pointer)) for i in range(n_max)]
     igraph[count:count_end, 0] = n1 + (indices if n1 < n2 else outliers)
     igraph[count:count_end, 1] = n2 + (outliers if n1 < n2 else indices)
@@ -372,12 +370,12 @@ def fast_match_edge_maps(bmap1, bmap2, max_dist, outlier_cost, need_cost=False):
     count = count_end
 
     # perfect match overlay (diagonal)
-    indices = np.arange(n1).astype(int32)
+    indices = np.arange(n1).astype(np.int32)
     igraph[count:count + n1, 0] = indices
     igraph[count:count + n1, 1] = n2 + indices
     igraph[count:count + n1, 2] = ow * multiplier
     count += n1
-    indices = np.arange(n2).astype(int32)
+    indices = np.arange(n2).astype(np.int32)
     igraph[count:count + n2, 0] = n1 + indices
     igraph[count:count + n2, 1] = indices
     igraph[count:count + n2, 2] = ow * multiplier
@@ -388,7 +386,7 @@ def fast_match_edge_maps(bmap1, bmap2, max_dist, outlier_cost, need_cost=False):
     igraph[:, 1] += 1 + n
 
     # Solve the assignment problem
-    ograph = np.zeros((n, 3), dtype=int32)
+    ograph = np.zeros((n, 3), dtype=np.int32)
     solver.solve(n, m, igraph.ctypes.data_as(c_int_pointer), ograph.ctypes.data_as(c_int_pointer))
 
     # Check the solution
@@ -424,11 +422,13 @@ def fast_match_edge_maps(bmap1, bmap2, max_dist, outlier_cost, need_cost=False):
     return m1, m2, cost
 
 
-def correspond_pixels(bmap1, bmap2, max_dist=0.0075, outliner_cost=100):
+def correspond_pixels(bmap1, bmap2, solver_path, max_dist=0.0075, outliner_cost=100):
     # check arguments
     assert bmap1.shape == bmap2.shape
     assert max_dist >= 0
     assert outliner_cost > 1
+
+    solver = cdll.LoadLibrary(solver_path)
 
     # do the computation
     rows, cols = bmap1.shape
@@ -436,7 +436,7 @@ def correspond_pixels(bmap1, bmap2, max_dist=0.0075, outliner_cost=100):
     max_dist *= idiag
     oc = outliner_cost * max_dist
 
-    match1, match2, cost = fast_match_edge_maps(bmap1, bmap2, max_dist, oc, False)
+    match1, match2, cost = fast_match_edge_maps(bmap1, bmap2, max_dist, oc, solver, False)
     return match1, match2, cost, oc
 
 

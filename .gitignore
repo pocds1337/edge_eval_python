@@ -1,1 +1,5 @@
 /.idea/
+/examples/
+/__pycache__/
+/impl/__pycache__/
+/eval/

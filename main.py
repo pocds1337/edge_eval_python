@@ -14,8 +14,8 @@ def main(args):
     key = args.key  # x = scipy.io.loadmat(filename)[key]
     file_format = args.file_format  # ".mat" or ".npy"
     workers = args.workers  # number workers
-    nms_process(model_name_list, result_dir, save_dir, key, file_format)
-    eval_edge(alg, model_name_list, save_dir, gt_dir, workers)
+    nms_process(model_name_list, result_dir, save_dir, solver_path, key, file_format)
+    eval_edge(alg, model_name_list, save_dir, solver_path, gt_dir, workers)
 
 
 if __name__ == '__main__':
@@ -28,6 +28,7 @@ if __name__ == '__main__':
     parser.add_argument("--key", type=str, default="result", help="key")
     parser.add_argument("--file_format", type=str, default=".mat", help=".mat or .npy")
     parser.add_argument("--workers", type=int, default="-1", help="number workers, -1 for all workers")
+    parser.add_argument("--solver_path", type=str, default="cxx/lib/solve_csa.so", help="where solve_csa.so is located")
     args = parser.parse_args()
     main(args)
 

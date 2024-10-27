@@ -13,12 +13,10 @@ from ctypes import *
 #    ** Such slight differences (11e-8 - 9e-8 = 2e-8) in precision **
 #    ** would lead to very different results (`out = 0` in C and `out = edge` in python). **
 #    Sadly, C implementation is not expected but needed :(
-solver = cdll.LoadLibrary("cxx/lib/solve_csa.so")
-c_float_pointer = POINTER(c_float)
-solver.nms.argtypes = [c_float_pointer, c_float_pointer, c_float_pointer, c_int, c_int, c_float, c_int, c_int]
 
 
-def nms_process_one_image(image, save_path=None, save=True):
+
+def nms_process_one_image(image,solver_path, save_path=None, save=True):
     """"
     :param image: numpy array, edge, model output
     :param save_path: str, save path
@@ -26,6 +24,10 @@ def nms_process_one_image(image, save_path=None, save=True):
     :return: edge
     NOTE: in MATLAB, uint8(x) means round(x).astype(uint8) in numpy
     """
+
+    solver = cdll.LoadLibrary(solver_path)
+    c_float_pointer = POINTER(c_float)
+    solver.nms.argtypes = [c_float_pointer, c_float_pointer, c_float_pointer, c_int, c_int, c_float, c_int, c_int]
 
     if save and save_path is not None:
         assert os.path.splitext(save_path)[-1] == ".png"
@@ -45,12 +47,12 @@ def nms_process_one_image(image, save_path=None, save=True):
     if save:
         cv2.imwrite(save_path, edge)
     return edge
+ 
 
-
-def nms_process(model_name_list, result_dir, save_dir, key=None, file_format=".mat"):
+def nms_process(model_name_list, result_dir, save_dir, solver_path, key=None, file_format=".mat"):
     if not isinstance(model_name_list, list):
         model_name_list = [model_name_list]
-    assert file_format in {".mat", ".npy"}
+    assert file_format in {".mat", ".npy"}, f"Invalid file format: {file_format}. Only .mat and .npy are allowed."
     assert os.path.isdir(result_dir)
 
     for model_name in model_name_list:
@@ -73,7 +75,7 @@ def nms_process(model_name_list, result_dir, save_dir, key=None, file_format=".m
                 image = np.load(abs_path)
             else:
                 raise NotImplementedError
-            nms_process_one_image(image, save_name, True)
+            nms_process_one_image(image, save_name, True, solver_path)
 
 
 if __name__ == '__main__':

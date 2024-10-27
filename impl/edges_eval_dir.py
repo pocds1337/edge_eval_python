@@ -14,7 +14,7 @@ from .correspond_pixels import correspond_pixels
 eps = 2e-6
 
 
-def edges_eval_img(im, gt, out="", thrs=99, max_dist=0.0075, thin=True, need_v=False, workers=1):
+def edges_eval_img(im, gt, solver, out="", thrs=99, max_dist=0.0075, thin=True, need_v=False, workers=1):
     """
     See https://github.com/pdollar/edges/blob/master/edgesEvalImg.m
     """
@@ -68,7 +68,7 @@ def edges_eval_img(im, gt, out="", thrs=99, max_dist=0.0075, thin=True, need_v=F
     else:
         assert not need_v
 
-        def _process_thrs_loop(_edge, _gt, _eps, _thrs, _thin, _max_dist, _indices, _queue):
+        def _process_thrs_loop(_edge, _gt, _eps, _thrs, _thin, _max_dist, _indices, _queue, solver):
             for _k in _indices:
                 _e1 = _edge >= max(_eps, _thrs[_k])
                 if _thin:
@@ -76,7 +76,7 @@ def edges_eval_img(im, gt, out="", thrs=99, max_dist=0.0075, thin=True, need_v=F
                 _match_e, _match_g = np.zeros_like(_edge, dtype=bool), np.zeros_like(_edge, dtype=int)
                 _all_g = np.zeros_like(edge, dtype=int)
                 for _g in _gt:
-                    _match_e1, _match_g1, _, _ = correspond_pixels(_e1, _g, _max_dist)
+                    _match_e1, _match_g1, _, _ = correspond_pixels(_e1, _g, solver, _max_dist)
                     _match_e = np.logical_or(_match_e, _match_e1 > 0)
                     _match_g = _match_g + (_match_g1 > 0)
                     _all_g += _g
@@ -90,7 +90,7 @@ def edges_eval_img(im, gt, out="", thrs=99, max_dist=0.0075, thin=True, need_v=F
         queue = mp.SimpleQueue()
         split_indices = np.array_split(np.arange(k), workers)
         pool = [mp.Process(target=_process_thrs_loop,
-                           args=(edge, gt, eps, thrs, thin, max_dist, split_indices[_], queue))
+                           args=(edge, gt, eps, thrs, thin, max_dist, split_indices[_], queue, solver))
                 for _ in range(workers)]
         [thread.start() for thread in pool]
         process_cnt_k = 0
@@ -132,7 +132,7 @@ def find_best_rpf(t, r, p):
     return bst_r, bst_p, bst_f, bst_t
 
 
-def edges_eval_dir(res_dir, gt_dir, cleanup=0, thrs=99, max_dist=0.0075, thin=True, workers=1):
+def edges_eval_dir(res_dir, gt_dir, solver, cleanup=0, thrs=99, max_dist=0.0075, thin=True, workers=1):
     """
     See https://github.com/pdollar/edges/blob/master/edgesEvalDir.m
     """
@@ -155,7 +155,7 @@ def edges_eval_dir(res_dir, gt_dir, cleanup=0, thrs=99, max_dist=0.0075, thin=Tr
         im = os.path.join(res_dir, "{}.png".format(i))
         gt = os.path.join(gt_dir, "{}.mat".format(i))
         print("{}/{} eval {}...".format(ci, len(ids), im))
-        edges_eval_img(im, gt, out=res, thrs=thrs, max_dist=max_dist, thin=thin, workers=workers)
+        edges_eval_img(im, gt, solver, out=res, thrs=thrs, max_dist=max_dist, thin=thin, workers=workers)
 
     # collect evaluation results
     cnt_sum_r_p = 0
