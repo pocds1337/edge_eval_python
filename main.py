@@ -16,7 +16,7 @@ def main(args):
     workers = args.workers  # number workers
     solver_path = args.solver_path
     nms_process(model_name_list, result_dir, save_dir, solver_path, key, file_format)
-    eval_edge(alg, model_name_list, save_dir, solver_path, gt_dir, workers)
+    eval_edge(alg, model_name_list, save_dir, gt_dir, solver_path, workers)
 
 
 if __name__ == '__main__':
