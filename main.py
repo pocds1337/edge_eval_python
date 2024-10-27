@@ -14,6 +14,7 @@ def main(args):
     key = args.key  # x = scipy.io.loadmat(filename)[key]
     file_format = args.file_format  # ".mat" or ".npy"
     workers = args.workers  # number workers
+    solver_path = args.solver_path
     nms_process(model_name_list, result_dir, save_dir, solver_path, key, file_format)
     eval_edge(alg, model_name_list, save_dir, solver_path, gt_dir, workers)
 
